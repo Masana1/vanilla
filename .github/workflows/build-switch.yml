@@ -7,16 +7,17 @@ on:
 jobs:
   build-arm64:
     runs-on: ubuntu-latest
+    container: debian:bookworm
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install dependencies
         run: |
-          sudo dpkg --add-architecture arm64
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            crossbuild-essential-arm64 cmake make pkg-config \
+          dpkg --add-architecture arm64
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            git crossbuild-essential-arm64 cmake make pkg-config \
             libssl-dev:arm64 libsdl2-dev:arm64 libsdl2-image-dev:arm64 libsdl2-ttf-dev:arm64 \
             libdrm-dev:arm64 libgbm-dev:arm64 \
             libavcodec-dev:arm64 libavformat-dev:arm64 libavutil-dev:arm64 libswscale-dev:arm64 \
