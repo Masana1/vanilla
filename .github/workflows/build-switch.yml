@@ -17,12 +17,11 @@ jobs:
           dpkg --add-architecture arm64
           apt-get update
           apt-get install -y --no-install-recommends \
-            git crossbuild-essential-arm64 cmake make pkg-config \
+            git ca-certificates crossbuild-essential-arm64 cmake make pkg-config \
             libssl-dev:arm64 libsdl2-dev:arm64 libsdl2-image-dev:arm64 libsdl2-ttf-dev:arm64 \
-            libdrm-dev:arm64 libgbm-dev:arm64 \
             libavcodec-dev:arm64 libavformat-dev:arm64 libavutil-dev:arm64 libswscale-dev:arm64 \
-            libxml2-dev:arm64 libnl-3-dev:arm64 libnl-genl-3-dev:arm64 libnl-route-3-dev:arm64 \
-            libnm-dev:arm64 libpolkit-gobject-1-dev:arm64 libpolkit-agent-1-dev:arm64
+            libxml2-dev:arm64 libnl-genl-3-dev:arm64 libnl-route-3-dev:arm64 \
+            libnm-dev:arm64 libpolkit-agent-1-dev:arm64
 
       - name: Build Vanilla
         env:
@@ -31,7 +30,7 @@ jobs:
           mkdir build_switch
           cd build_switch
           cmake -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ ..
-          make -j8
+          cmake --build . --parallel
 
       - name: Upload Binary Artifact
         uses: actions/upload-artifact@v4
