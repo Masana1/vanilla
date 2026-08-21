@@ -26,6 +26,11 @@ jobs:
             libxml2-dev:arm64 libnl-3-dev:arm64 libnl-genl-3-dev:arm64 libnl-route-3-dev:arm64 \
             libnm-dev:arm64 libpolkit-gobject-1-dev:arm64 libpolkit-agent-1-dev:arm64
 
+      - name: Configure DRM Backend for Switch
+        run: |
+          # Désactive l'appel windowed SDL dans main.c pour forcer le backend direct DRM
+          sed -i 's/VANILLA_GUI_ENABLE_WINDOWED/VANILLA_GUI_WINDOWED_DISABLED/g' gui/main.c gui/CMakeLists.txt || true
+
       - name: Build Vanilla Switch ARM64
         env:
           CC: aarch64-linux-gnu-gcc
@@ -45,10 +50,12 @@ jobs:
             -DCMAKE_SYSTEM_NAME=Linux \
             -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
             -DCMAKE_FIND_ROOT_PATH=/usr/lib/aarch64-linux-gnu \
+            -DVANILLA_GUI_ENABLE_WINDOWED=OFF \
+            -DVANILLA_GUI_ENABLE_DRM=ON \
             -DCMAKE_C_FLAGS="-Wno-error -DVANILLA_DRM_AVAILABLE" \
             -DCMAKE_CXX_FLAGS="-Wno-error" \
             -DEXTRA_CFLAGS="-Wno-error"
-          make VERBOSE=1
+          make -j8
 
       - name: Package Switch Binaries
         run: |
