@@ -12,8 +12,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Install ARM64 dependencies
         run: |
@@ -26,6 +24,11 @@ jobs:
             libavcodec-dev:arm64 libavformat-dev:arm64 libavutil-dev:arm64 libswscale-dev:arm64 \
             libxml2-dev:arm64 libnl-3-dev:arm64 libnl-genl-3-dev:arm64 libnl-route-3-dev:arm64 \
             libnm-dev:arm64 libpolkit-gobject-1-dev:arm64 libpolkit-agent-1-dev:arm64
+
+      - name: Update submodules
+        run: |
+          git config --global --add safe.directory /__w/vanilla/vanilla
+          git submodule update --init --recursive
 
       - name: Patch hostap OpenSSL 3.0 compatibility
         run: |
