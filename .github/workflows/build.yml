@@ -25,8 +25,12 @@ jobs:
             libxml2-dev:arm64 libnl-3-dev:arm64 libnl-genl-3-dev:arm64 libnl-route-3-dev:arm64 \
             libnm-dev:arm64 libpolkit-gobject-1-dev:arm64 libpolkit-agent-1-dev:arm64
 
-      - name: Configure CMake
+      - name: Build Vanilla Switch
         env:
+          CC: aarch64-linux-gnu-gcc
+          CXX: aarch64-linux-gnu-g++
+          AR: aarch64-linux-gnu-ar
+          RANLIB: aarch64-linux-gnu-ranlib
           PKG_CONFIG_PATH: /usr/lib/aarch64-linux-gnu/pkgconfig
           PKG_CONFIG_LIBDIR: /usr/lib/aarch64-linux-gnu/pkgconfig
         run: |
@@ -37,12 +41,9 @@ jobs:
             -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
             -DCMAKE_SYSTEM_NAME=Linux \
             -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
-            -DCMAKE_FIND_ROOT_PATH=/usr/lib/aarch64-linux-gnu
-
-      - name: Compile Vanilla
-        run: |
-          cd build_switch
-          make VERBOSE=1
+            -DCMAKE_FIND_ROOT_PATH=/usr/lib/aarch64-linux-gnu \
+            -DEXTRA_CFLAGS="-Wno-error"
+          make -j8
 
       - name: Package Switch Binary
         run: |
