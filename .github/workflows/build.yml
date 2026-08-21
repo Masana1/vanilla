@@ -8,52 +8,56 @@ jobs:
   build-switch:
     name: build-nintendoswitch-arm64
     runs-on: ubuntu-latest
+    container: debian:bookworm
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
-      - name: Build Native ARM64 via QEMU
-        uses: uraimo/run-on-arch-action@v2
-        with:
-          arch: aarch64
-          distro: ubuntu22.04
-          useCache: false
-          install: |
-            apt-get update
-            apt-get install -y --no-install-recommends \
-              build-essential cmake make pkg-config zip git ca-certificates \
-              libssl-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev \
-              libdrm-dev libgbm-dev libegl-dev libgles-dev \
-              libavcodec-dev libavformat-dev libavutil-dev libswscale-dev \
-              libxml2-dev libnl-3-dev libnl-genl-3-dev libnl-route-3-dev \
-              libnm-dev libpolkit-gobject-1-dev libpolkit-agent-1-dev
-          run: |
-            # 1. Patch find_package SDL2_ttf pour utiliser PkgConfig
-            sed -i 's/find_package(SDL2_ttf REQUIRED)/find_package(PkgConfig REQUIRED)\npkg_check_modules(SDL2_ttf REQUIRED SDL2_ttf)/g' gui/CMakeLists.txt || true
-            sed -i 's/find_package(SDL2_image REQUIRED)/find_package(PkgConfig REQUIRED)\npkg_check_modules(SDL2_image REQUIRED SDL2_image)/g' gui/CMakeLists.txt || true
+      - name: Install ARM64 cross-compile toolchain & dependencies
+        run: |
+          dpkg --add-architecture arm64
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            git ca-certificates crossbuild-essential-arm64 cmake make pkg-config zip \
+            libssl-dev:arm64 libsdl2-dev:arm64 libsdl2-image-dev:arm64 libsdl2-ttf-dev:arm64 \
+            libdrm-dev:arm64 libgbm-dev:arm64 libegl-dev:arm64 libgles-dev:arm64 \
+            libavcodec-dev:arm64 libavformat-dev:arm64 libavutil-dev:arm64 libswscale-dev:arm64 \
+            libavfilter-dev:arm64 libasound2-dev:arm64 libpulse-dev:arm64 libudev-dev:arm64 \
+            libxml2-dev:arm64 libnl-3-dev:arm64 libnl-genl-3-dev:arm64 libnl-route-3-dev:arm64 \
+            libnm-dev:arm64 libpolkit-gobject-1-dev:arm64 libpolkit-agent-1-dev:arm64
 
-            # 2. Patch OpenSSL 3.0 hostap
-            find . -name "defconfig" -o -name ".config" | xargs sed -i 's/^CONFIG_ENGINE=y/# CONFIG_ENGINE is not set/g' 2>/dev/null || true
-            find . -name "tls_openssl.c" -exec sed -i 's/ERR_load_ENGINE_strings();/#if OPENSSL_VERSION_NUMBER < 0x30000000L\n\tERR_load_ENGINE_strings();\n#endif/g' {} +
-            find . -name "tls_openssl.c" -exec sed -i 's/ENGINE_load_builtin_engines();/#if OPENSSL_VERSION_NUMBER < 0x30000000L\n\tENGINE_load_builtin_engines();\n#endif/g' {} +
-            find . -name "tls_openssl.c" -exec sed -i 's/ENGINE_register_all_complete();/#if OPENSSL_VERSION_NUMBER < 0x30000000L\n\tENGINE_register_all_complete();\n#endif/g' {} +
-            find . -name "tls_openssl.c" -exec sed -i 's/ENGINE_finish(engine);/#if OPENSSL_VERSION_NUMBER < 0x30000000L\n\tENGINE_finish(engine);\n#endif/g' {} +
-            find . -name "tls_openssl.c" -exec sed -i 's/ENGINE_free(engine);/#if OPENSSL_VERSION_NUMBER < 0x30000000L\n\tENGINE_free(engine);\n#endif/g' {} +
+      - name: Build Vanilla Switch ARM64
+        env:
+          CC: aarch64-linux-gnu-gcc
+          CXX: aarch64-linux-gnu-g++
+          AR: aarch64-linux-gnu-ar
+          RANLIB: aarch64-linux-gnu-ranlib
+          PKG_CONFIG_PATH: /usr/lib/aarch64-linux-gnu/pkgconfig
+          PKG_CONFIG_LIBDIR: /usr/lib/aarch64-linux-gnu/pkgconfig
+          CFLAGS: "-Wno-error"
+          EXTRA_CFLAGS: "-Wno-error"
+        run: |
+          mkdir -p build_switch
+          cd build_switch
+          cmake .. \
+            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
+            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
+            -DCMAKE_SYSTEM_NAME=Linux \
+            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+            -DCMAKE_FIND_ROOT_PATH=/usr/lib/aarch64-linux-gnu \
+            -DCMAKE_C_FLAGS="-Wno-error -DVANILLA_DRM_AVAILABLE" \
+            -DCMAKE_CXX_FLAGS="-Wno-error" \
+            -DEXTRA_CFLAGS="-Wno-error"
+          make VERBOSE=1
 
-            # 3. Compilation
-            mkdir -p build_switch
-            cd build_switch
-            cmake ..
-            make -j8
-
-            # 4. Packaging
-            mkdir -p ../dist
-            find . -name "vanilla" -type f -exec cp {} ../dist/ \; || true
-            find . -name "vanilla-pipe" -type f -exec cp {} ../dist/ \; || true
-            cd ../dist
-            zip vanilla-nintendoswitch-arm64.zip *
+      - name: Package Switch Binaries
+        run: |
+          mkdir -p dist
+          find build_switch -name "vanilla" -type f -exec cp {} dist/ \; || true
+          find build_switch -name "vanilla-pipe" -type f -exec cp {} dist/ \; || true
+          cd dist
+          zip vanilla-nintendoswitch-arm64.zip *
+          cd ..
 
       - name: Upload Switch Artifact
         uses: actions/upload-artifact@v4
