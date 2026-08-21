@@ -8,25 +8,50 @@ jobs:
   build-switch:
     name: build-nintendoswitch-arm64
     runs-on: ubuntu-latest
-    container: alpine:3.16
+    container: debian:bookworm
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-      - name: Install dependencies
+      - name: Install ARM64 dependencies
         run: |
-          apk update
-          apk add --no-cache \
-            git build-base cmake make pkgconf zip \
-            openssl1.1-compat-dev sdl2-dev sdl2_image-dev sdl2_ttf-dev \
-            ffmpeg-dev libdrm-dev mesa-dev libxml2-dev libnl3-dev \
-            networkmanager-dev polkit-dev
+          dpkg --add-architecture arm64
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            git ca-certificates crossbuild-essential-arm64 cmake make pkg-config zip \
+            libssl-dev:arm64 libsdl2-dev:arm64 libsdl2-image-dev:arm64 libsdl2-ttf-dev:arm64 \
+            libdrm-dev:arm64 libgbm-dev:arm64 libegl-dev:arm64 libgles-dev:arm64 \
+            libavcodec-dev:arm64 libavformat-dev:arm64 libavutil-dev:arm64 libswscale-dev:arm64 \
+            libavfilter-dev:arm64 libasound2-dev:arm64 libpulse-dev:arm64 libudev-dev:arm64 \
+            libxml2-dev:arm64 libnl-3-dev:arm64 libnl-genl-3-dev:arm64 libnl-route-3-dev:arm64 \
+            libnm-dev:arm64 libpolkit-gobject-1-dev:arm64 libpolkit-agent-1-dev:arm64
+
+      - name: Patch OpenSSL 3.0 for hostap
+        run: |
+          # Corrige les fonctions ENGINE depreciees dans tous les fichiers tls_openssl.c
+          find . -name "tls_openssl.c" -exec sed -i 's/ERR_load_ENGINE_strings();/\/\/ ERR_load_ENGINE_strings();/g' {} +
+          find . -name "tls_openssl.c" -exec sed -i 's/ENGINE_finish(engine);/\/\/ ENGINE_finish(engine);/g' {} +
+          find . -name "tls_openssl.c" -exec sed -i 's/ENGINE_free(engine);/\/\/ ENGINE_free(engine);/g' {} +
 
       - name: Build Vanilla Switch
+        env:
+          CC: aarch64-linux-gnu-gcc
+          CXX: aarch64-linux-gnu-g++
+          AR: aarch64-linux-gnu-ar
+          RANLIB: aarch64-linux-gnu-ranlib
+          PKG_CONFIG_PATH: /usr/lib/aarch64-linux-gnu/pkgconfig
+          PKG_CONFIG_LIBDIR: /usr/lib/aarch64-linux-gnu/pkgconfig
         run: |
           mkdir -p build_switch
           cd build_switch
-          cmake ..
+          cmake .. \
+            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
+            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
+            -DCMAKE_SYSTEM_NAME=Linux \
+            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+            -DCMAKE_FIND_ROOT_PATH=/usr/lib/aarch64-linux-gnu
           make -j8
 
       - name: Package Switch Binary
