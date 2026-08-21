@@ -5,50 +5,55 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: build (nintendoswitch, aarch64, vanilla-nintendoswitch-image.zip)
+  build-switch:
+    name: build-nintendoswitch-arm64
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - target: nintendoswitch
-            arch: aarch64
-            archive: vanilla-nintendoswitch-image.zip
+    container: debian:bookworm
     steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Install dependencies for cross-compiling
+      - name: Install ARM64 dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y qemu-user-static binfmt-support
+          dpkg --add-architecture arm64
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            git ca-certificates crossbuild-essential-arm64 cmake make pkg-config zip \
+            libssl-dev:arm64 libsdl2-dev:arm64 libsdl2-image-dev:arm64 libsdl2-ttf-dev:arm64 \
+            libdrm-dev:arm64 libgbm-dev:arm64 libegl-dev:arm64 libgles-dev:arm64 \
+            libavcodec-dev:arm64 libavformat-dev:arm64 libavutil-dev:arm64 libswscale-dev:arm64 \
+            libxml2-dev:arm64 libnl-3-dev:arm64 libnl-genl-3-dev:arm64 libnl-route-3-dev:arm64 \
+            libnm-dev:arm64 libpolkit-gobject-1-dev:arm64 libpolkit-agent-1-dev:arm64
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: docker/Dockerfile
-          target: ${{ matrix.target }}
-          platforms: linux/${{ matrix.arch }}
-          load: true
-          tags: vanilla:${{ matrix.target }}
-
-      - name: Extract build artifact from container
+      - name: Configure CMake
+        env:
+          PKG_CONFIG_PATH: /usr/lib/aarch64-linux-gnu/pkgconfig
+          PKG_CONFIG_LIBDIR: /usr/lib/aarch64-linux-gnu/pkgconfig
         run: |
-          mkdir -p output
-          docker create --name extract vanilla:${{ matrix.target }}
-          docker cp extract:/vanilla/dist/. output/ 2>/dev/null || docker cp extract:/build/. output/ 2>/dev/null || docker cp extract:/vanilla/build/. output/ 2>/dev/null || true
-          docker rm extract
-          cd output
-          zip -r ../${{ matrix.archive }} *
+          mkdir -p build_switch
+          cd build_switch
+          cmake .. \
+            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
+            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
+            -DCMAKE_SYSTEM_NAME=Linux \
+            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+            -DCMAKE_FIND_ROOT_PATH=/usr/lib/aarch64-linux-gnu
+
+      - name: Compile Vanilla
+        run: |
+          cd build_switch
+          make VERBOSE=1
+
+      - name: Package Switch Binary
+        run: |
+          mkdir -p dist
+          find build_switch -name vanilla -type f -exec cp {} dist/ \;
+          cd dist
+          zip vanilla-nintendoswitch-arm64.zip *
           cd ..
 
-      - name: Upload Build Artifact
+      - name: Upload Switch Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.archive }}
-          path: ${{ matrix.archive }}
+          name: vanilla-nintendoswitch-arm64
+          path: dist/vanilla-nintendoswitch-arm64.zip
