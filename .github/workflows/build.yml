@@ -47,11 +47,10 @@ jobs:
             -DCMAKE_SYSTEM_NAME=Linux \
             -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
             -DCMAKE_FIND_ROOT_PATH=/usr/lib/aarch64-linux-gnu \
-            -DCMAKE_C_FLAGS="-Wno-error -DVANILLA_DRM_AVAILABLE" \
-            -DCMAKE_CXX_FLAGS="-Wno-error -DVANILLA_DRM_AVAILABLE" \
-            -DVANILLA_GUI_ENABLE_DRM=ON \
-            -DVANILLA_GUI_ENABLE_WINDOWED=OFF
-          make -j8
+            -DCMAKE_C_FLAGS="-Wno-error" \
+            -DCMAKE_CXX_FLAGS="-Wno-error" \
+            -DEXTRA_CFLAGS="-Wno-error"
+          make VERBOSE=1
 
       - name: Package Switch Binaries
         run: |
