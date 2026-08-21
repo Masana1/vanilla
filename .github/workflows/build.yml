@@ -26,13 +26,18 @@ jobs:
             libxml2-dev:arm64 libnl-3-dev:arm64 libnl-genl-3-dev:arm64 libnl-route-3-dev:arm64 \
             libnm-dev:arm64 libpolkit-gobject-1-dev:arm64 libpolkit-agent-1-dev:arm64
 
-      - name: Patch hostap & Force DRM Source Mapping in CMake
+      - name: Patch hostap & Map main.c to DRM functions explicitly
         run: |
           # 1. Neutraliser CONFIG_ENGINE pour hostap (OpenSSL 3.0)
           find . -name "defconfig" -o -name ".config" | xargs sed -i 's/^CONFIG_ENGINE=y/# CONFIG_ENGINE is not set/g' 2>/dev/null || true
 
-          # 2. Supprimer la référence à ui_sdl.c pour ne compiler que ui_sdl_drm.c
-          sed -i '/ui\/ui_sdl.c/d' gui/CMakeLists.txt
+          # 2. Utiliser ui_sdl_drm.c à la place de ui_sdl.c dans CMakeLists.txt
+          sed -i 's/ui\/ui_sdl.c/ui\/ui_sdl_drm.c/g' gui/CMakeLists.txt
+
+          # 3. Rediriger les symboles dans main.c pour correspondre exactement à ui_sdl_drm.c
+          sed -i 's/vui_init_sdl(/vui_init_sdl_drm(/g' gui/main.c
+          sed -i 's/vui_update_sdl(/vui_update_sdl_drm(/g' gui/main.c
+          sed -i 's/vui_close_sdl(/vui_close_sdl_drm(/g' gui/main.c
 
       - name: Build Vanilla Switch ARM64
         env:
