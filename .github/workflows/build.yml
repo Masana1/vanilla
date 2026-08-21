@@ -26,12 +26,13 @@ jobs:
             libxml2-dev:arm64 libnl-3-dev:arm64 libnl-genl-3-dev:arm64 libnl-route-3-dev:arm64 \
             libnm-dev:arm64 libpolkit-gobject-1-dev:arm64 libpolkit-agent-1-dev:arm64
 
-      - name: Patch hostap & main.c DRM
+      - name: Patch hostap & GUI DRM
         run: |
+          # 1. Fix OpenSSL 3.0 hostap
           find . -name "defconfig" -o -name ".config" | xargs sed -i 's/^CONFIG_ENGINE=y/# CONFIG_ENGINE is not set/g' 2>/dev/null || true
-          sed -i 's/vui_init_sdl(/vui_init_sdl_drm(/g' gui/main.c || true
-          sed -i 's/vui_update_sdl(/vui_update_sdl_drm(/g' gui/main.c || true
-          sed -i 's/vui_close_sdl(/vui_close_sdl_drm(/g' gui/main.c || true
+
+          # 2. Supprimer la directive WINDOWED dans gui/CMakeLists.txt pour lier en DRM direct
+          sed -i 's/VANILLA_GUI_ENABLE_WINDOWED//g' gui/CMakeLists.txt
 
       - name: Build Vanilla Switch ARM64
         env:
@@ -41,8 +42,6 @@ jobs:
           RANLIB: aarch64-linux-gnu-ranlib
           PKG_CONFIG_PATH: /usr/lib/aarch64-linux-gnu/pkgconfig
           PKG_CONFIG_LIBDIR: /usr/lib/aarch64-linux-gnu/pkgconfig
-          CFLAGS: "-Wno-error"
-          EXTRA_CFLAGS: "-Wno-error"
         run: |
           mkdir -p build_switch
           cd build_switch
@@ -53,15 +52,14 @@ jobs:
             -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
             -DCMAKE_FIND_ROOT_PATH=/usr/lib/aarch64-linux-gnu \
             -DCMAKE_C_FLAGS="-Wno-error -DVANILLA_DRM_AVAILABLE" \
-            -DCMAKE_CXX_FLAGS="-Wno-error" \
-            -DEXTRA_CFLAGS="-Wno-error"
+            -DCMAKE_CXX_FLAGS="-Wno-error -DVANILLA_DRM_AVAILABLE"
           make -j8
 
       - name: Package Switch Binaries
         run: |
           mkdir -p dist
-          find build_switch -name "vanilla" -type f -exec cp {} dist/ \; || true
-          find build_switch -name "vanilla-pipe" -type f -exec cp {} dist/ \; || true
+          find build_switch -type f -name "vanilla" -exec cp {} dist/ \; || true
+          find build_switch -type f -name "vanilla-pipe" -exec cp {} dist/ \; || true
           cd dist
           zip vanilla-nintendoswitch-arm64.zip *
           cd ..
