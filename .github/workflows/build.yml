@@ -26,13 +26,13 @@ jobs:
             libxml2-dev:arm64 libnl-3-dev:arm64 libnl-genl-3-dev:arm64 libnl-route-3-dev:arm64 \
             libnm-dev:arm64 libpolkit-gobject-1-dev:arm64 libpolkit-agent-1-dev:arm64
 
-      - name: Patch hostap & Force global DRM definition
+      - name: Patch hostap & Switch DRM Backend
         run: |
           # 1. Neutraliser CONFIG_ENGINE obsolete pour hostap
           find . -name "defconfig" -o -name ".config" | xargs sed -i 's/^CONFIG_ENGINE=y/# CONFIG_ENGINE is not set/g' 2>/dev/null || true
 
-          # 2. Injecter la definition DRM globalement pour main.c et libvanillagui
-          sed -i '1s/^/add_definitions(-DVANILLA_DRM_AVAILABLE)\n/' gui/CMakeLists.txt
+          # 2. Remplacer WINDOWED par DRM_AVAILABLE dans toute la configuration GUI
+          sed -i 's/VANILLA_GUI_ENABLE_WINDOWED/VANILLA_DRM_AVAILABLE/g' gui/CMakeLists.txt
 
       - name: Build Vanilla Switch ARM64
         env:
