@@ -38,10 +38,8 @@ jobs:
             -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
             -DCMAKE_SYSTEM_NAME=Linux \
             -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
-            -DCMAKE_FIND_ROOT_PATH=/usr/lib/aarch64-linux-gnu \
-            -DVANILLA_GUI_ENABLE_WINDOWED=ON \
-            -DVANILLA_GUI_ENABLE_DRM=ON
-          make VERBOSE=1 -j8
+            -DCMAKE_FIND_ROOT_PATH=/usr/lib/aarch64-linux-gnu
+          make
 
       - name: Package Switch Binary
         run: |
