@@ -22,7 +22,6 @@ jobs:
             libssl-dev:arm64 libsdl2-dev:arm64 libsdl2-image-dev:arm64 libsdl2-ttf-dev:arm64 \
             libdrm-dev:arm64 libgbm-dev:arm64 libegl-dev:arm64 libgles-dev:arm64 \
             libavcodec-dev:arm64 libavformat-dev:arm64 libavutil-dev:arm64 libswscale-dev:arm64 \
-            libavfilter-dev:arm64 libasound2-dev:arm64 libpulse-dev:arm64 libudev-dev:arm64 \
             libxml2-dev:arm64 libnl-3-dev:arm64 libnl-genl-3-dev:arm64 libnl-route-3-dev:arm64 \
             libnm-dev:arm64 libpolkit-gobject-1-dev:arm64 libpolkit-agent-1-dev:arm64
 
@@ -31,6 +30,8 @@ jobs:
           PKG_CONFIG_PATH: /usr/lib/aarch64-linux-gnu/pkgconfig
           PKG_CONFIG_LIBDIR: /usr/lib/aarch64-linux-gnu/pkgconfig
         run: |
+          # Correction du CMakeLists gui pour inclure ui_sdl.c en mode Switch/DRM
+          sed -i 's/ui\/ui_sdl_drm.c/ui\/ui_sdl_drm.c ui\/ui_sdl.c/g' gui/CMakeLists.txt || true
           mkdir -p build_switch
           cd build_switch
           cmake .. \
@@ -39,12 +40,12 @@ jobs:
             -DCMAKE_SYSTEM_NAME=Linux \
             -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
             -DCMAKE_FIND_ROOT_PATH=/usr/lib/aarch64-linux-gnu
-          make
+          make -j8
 
       - name: Package Switch Binary
         run: |
           mkdir -p dist
-          find build_switch -name vanilla -type f -exec cp {} dist/ \;
+          find build_switch/bin -name vanilla -type f -exec cp {} dist/ \; || find build_switch -name vanilla -type f -exec cp {} dist/ \;
           cd dist
           zip vanilla-nintendoswitch-arm64.zip *
           cd ..
