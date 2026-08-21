@@ -29,10 +29,7 @@ jobs:
 
       - name: Patch hostap OpenSSL 3.0 compatibility
         run: |
-          # 1. Neutraliser CONFIG_ENGINE dans la config wpa_supplicant / hostapd
           find . -name "defconfig" -o -name ".config" | xargs sed -i 's/^CONFIG_ENGINE=y/# CONFIG_ENGINE is not set/g' 2>/dev/null || true
-          
-          # 2. Entourer les appels ENGINE d un guard OpenSSL < 3.0 dans tous les fichiers tls_openssl.c
           find . -name "tls_openssl.c" -exec sed -i 's/ERR_load_ENGINE_strings();/#if OPENSSL_VERSION_NUMBER < 0x30000000L\n\tERR_load_ENGINE_strings();\n#endif/g' {} +
           find . -name "tls_openssl.c" -exec sed -i 's/ENGINE_load_builtin_engines();/#if OPENSSL_VERSION_NUMBER < 0x30000000L\n\tENGINE_load_builtin_engines();\n#endif/g' {} +
           find . -name "tls_openssl.c" -exec sed -i 's/ENGINE_register_all_complete();/#if OPENSSL_VERSION_NUMBER < 0x30000000L\n\tENGINE_register_all_complete();\n#endif/g' {} +
@@ -50,13 +47,8 @@ jobs:
         run: |
           mkdir -p build_switch
           cd build_switch
-          cmake .. \
-            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
-            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
-            -DCMAKE_SYSTEM_NAME=Linux \
-            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
-            -DCMAKE_FIND_ROOT_PATH=/usr/lib/aarch64-linux-gnu
-          make -j8
+          cmake -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64 -DCMAKE_FIND_ROOT_PATH=/usr/lib/aarch64-linux-gnu ..
+          cmake --build . --parallel 8
 
       - name: Package Switch Binary
         run: |
