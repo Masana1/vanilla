@@ -26,9 +26,13 @@ jobs:
             libxml2-dev:arm64 libnl-3-dev:arm64 libnl-genl-3-dev:arm64 libnl-route-3-dev:arm64 \
             libnm-dev:arm64 libpolkit-gobject-1-dev:arm64 libpolkit-agent-1-dev:arm64
 
-      - name: Patch hostap OpenSSL 3.0
+      - name: Patch hostap & Force global DRM definition
         run: |
+          # 1. Neutraliser CONFIG_ENGINE obsolete pour hostap
           find . -name "defconfig" -o -name ".config" | xargs sed -i 's/^CONFIG_ENGINE=y/# CONFIG_ENGINE is not set/g' 2>/dev/null || true
+
+          # 2. Injecter la definition DRM globalement pour main.c et libvanillagui
+          sed -i '1s/^/add_definitions(-DVANILLA_DRM_AVAILABLE)\n/' gui/CMakeLists.txt
 
       - name: Build Vanilla Switch ARM64
         env:
@@ -50,7 +54,7 @@ jobs:
             -DCMAKE_C_FLAGS="-Wno-error" \
             -DCMAKE_CXX_FLAGS="-Wno-error" \
             -DEXTRA_CFLAGS="-Wno-error"
-          make VERBOSE=1
+          make -j8
 
       - name: Package Switch Binaries
         run: |
