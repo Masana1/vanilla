@@ -1,4 +1,4 @@
-﻿name: Build
+﻿name: Build Switch Only
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    name: build (${{ matrix.target }}, ${{ matrix.arch }}, ${{ matrix.archive }})
+    name: build (nintendoswitch, aarch64, vanilla-nintendoswitch-image.zip)
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -24,29 +24,30 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y qemu-user-static binfmt-support
 
-      - name: Run docker/setup-buildx-action@v3
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Build Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: docker/Dockerfile
           target: ${{ matrix.target }}
           platforms: linux/${{ matrix.arch }}
           load: true
           tags: vanilla:${{ matrix.target }}
 
-      - name: Run Docker container
+      - name: Extract build artifact from container
         run: |
-          docker run --rm -v ${{ github.workspace }}:/output vanilla:${{ matrix.target }} cp -r /vanilla/build /output/build
-
-      - name: Archive (Nintendo Switch)
-        run: |
-          cd build
+          mkdir -p output
+          docker create --name extract vanilla:${{ matrix.target }}
+          docker cp extract:/vanilla/dist/. output/ 2>/dev/null || docker cp extract:/build/. output/ 2>/dev/null || docker cp extract:/vanilla/build/. output/ 2>/dev/null || true
+          docker rm extract
+          cd output
           zip -r ../${{ matrix.archive }} *
           cd ..
 
-      - name: Upload a Build Artifact
+      - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.archive }}
