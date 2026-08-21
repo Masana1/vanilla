@@ -5,67 +5,45 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-switch:
-    name: build-nintendoswitch-arm64
+  build:
+    name: build (nintendoswitch, aarch64, vanilla-nintendoswitch-image.zip)
     runs-on: ubuntu-latest
-    container: debian:bookworm
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-      - name: Install ARM64 cross-compile toolchain & dependencies
+      - name: Install dependencies for cross-compiling
         run: |
-          dpkg --add-architecture arm64
-          apt-get update
-          apt-get install -y --no-install-recommends \
-            git ca-certificates crossbuild-essential-arm64 cmake make pkg-config zip \
-            libssl-dev:arm64 libsdl2-dev:arm64 libsdl2-image-dev:arm64 libsdl2-ttf-dev:arm64 \
-            libdrm-dev:arm64 libgbm-dev:arm64 libegl-dev:arm64 libgles-dev:arm64 \
-            libavcodec-dev:arm64 libavformat-dev:arm64 libavutil-dev:arm64 libswscale-dev:arm64 \
-            libavfilter-dev:arm64 libasound2-dev:arm64 libpulse-dev:arm64 libudev-dev:arm64 \
-            libxml2-dev:arm64 libnl-3-dev:arm64 libnl-genl-3-dev:arm64 libnl-route-3-dev:arm64 \
-            libnm-dev:arm64 libpolkit-gobject-1-dev:arm64 libpolkit-agent-1-dev:arm64
+          sudo apt-get update
+          sudo apt-get install -y qemu-user-static binfmt-support
 
-      - name: Patch hostap & GUI DRM
+      - name: Run docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: nintendoswitch
+          platforms: linux/aarch64
+          load: true
+          tags: vanilla:nintendoswitch
+
+      - name: Run Docker container
         run: |
-          # 1. Fix OpenSSL 3.0 hostap
-          find . -name "defconfig" -o -name ".config" | xargs sed -i 's/^CONFIG_ENGINE=y/# CONFIG_ENGINE is not set/g' 2>/dev/null || true
+          docker run --rm -v ${{ github.workspace }}:/output vanilla:nintendoswitch cp -r /vanilla/build /output/build
 
-          # 2. Supprimer la directive WINDOWED dans gui/CMakeLists.txt pour lier en DRM direct
-          sed -i 's/VANILLA_GUI_ENABLE_WINDOWED//g' gui/CMakeLists.txt
-
-      - name: Build Vanilla Switch ARM64
-        env:
-          CC: aarch64-linux-gnu-gcc
-          CXX: aarch64-linux-gnu-g++
-          AR: aarch64-linux-gnu-ar
-          RANLIB: aarch64-linux-gnu-ranlib
-          PKG_CONFIG_PATH: /usr/lib/aarch64-linux-gnu/pkgconfig
-          PKG_CONFIG_LIBDIR: /usr/lib/aarch64-linux-gnu/pkgconfig
+      - name: Archive (Nintendo Switch)
         run: |
-          mkdir -p build_switch
-          cd build_switch
-          cmake .. \
-            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
-            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
-            -DCMAKE_SYSTEM_NAME=Linux \
-            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
-            -DCMAKE_FIND_ROOT_PATH=/usr/lib/aarch64-linux-gnu \
-            -DCMAKE_C_FLAGS="-Wno-error -DVANILLA_DRM_AVAILABLE" \
-            -DCMAKE_CXX_FLAGS="-Wno-error -DVANILLA_DRM_AVAILABLE"
-          make -j8
-
-      - name: Package Switch Binaries
-        run: |
-          mkdir -p dist
-          find build_switch -type f -name "vanilla" -exec cp {} dist/ \; || true
-          find build_switch -type f -name "vanilla-pipe" -exec cp {} dist/ \; || true
-          cd dist
-          zip vanilla-nintendoswitch-arm64.zip *
+          cd build
+          zip -r ../vanilla-nintendoswitch-image.zip *
           cd ..
 
-      - name: Upload Switch Artifact
+      - name: Upload a Build Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vanilla-nintendoswitch-arm64
-          path: dist/vanilla-nintendoswitch-arm64.zip
+          name: vanilla-nintendoswitch-image.zip
+          path: vanilla-nintendoswitch-image.zip
