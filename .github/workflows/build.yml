@@ -19,7 +19,7 @@ jobs:
         with:
           arch: aarch64
           distro: ubuntu22.04
-          githubToken: ${{ github.token }}
+          useCache: false
           install: |
             apt-get update
             apt-get install -y --no-install-recommends \
@@ -30,20 +30,20 @@ jobs:
               libxml2-dev libnl-3-dev libnl-genl-3-dev libnl-route-3-dev \
               libnm-dev libpolkit-gobject-1-dev libpolkit-agent-1-dev
           run: |
-            # Patch compatibilité OpenSSL 3.0
+            # Patch OpenSSL 3.0 hostap
             find . -name "defconfig" -o -name ".config" | xargs sed -i 's/^CONFIG_ENGINE=y/# CONFIG_ENGINE is not set/g' 2>/dev/null || true
             find . -name "tls_openssl.c" -exec sed -i 's/ERR_load_ENGINE_strings();/#if OPENSSL_VERSION_NUMBER < 0x30000000L\n\tERR_load_ENGINE_strings();\n#endif/g' {} +
             find . -name "tls_openssl.c" -exec sed -i 's/ENGINE_load_builtin_engines();/#if OPENSSL_VERSION_NUMBER < 0x30000000L\n\tENGINE_load_builtin_engines();\n#endif/g' {} +
             find . -name "tls_openssl.c" -exec sed -i 's/ENGINE_register_all_complete();/#if OPENSSL_VERSION_NUMBER < 0x30000000L\n\tENGINE_register_all_complete();\n#endif/g' {} +
             find . -name "tls_openssl.c" -exec sed -i 's/ENGINE_finish(engine);/#if OPENSSL_VERSION_NUMBER < 0x30000000L\n\tENGINE_finish(engine);\n#endif/g' {} +
             find . -name "tls_openssl.c" -exec sed -i 's/ENGINE_free(engine);/#if OPENSSL_VERSION_NUMBER < 0x30000000L\n\tENGINE_free(engine);\n#endif/g' {} +
-            
-            # Compilation
+
+            # Configuration & Compilation
             mkdir -p build_switch
             cd build_switch
             cmake ..
             make -j8
-            
+
             # Packaging
             mkdir -p ../dist
             find . -name "vanilla" -type f -exec cp {} ../dist/ \; || true
