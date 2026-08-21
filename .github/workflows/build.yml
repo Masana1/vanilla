@@ -7,28 +7,24 @@ on:
 jobs:
   build-switch:
     name: build-nintendoswitch-arm64
-    runs-on: ubuntu-latest
-    container: debian:bookworm
+    runs-on: ubuntu-22.04
     steps:
-      - name: Checkout repository
+      - name: Checkout repository with submodules
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-      - name: Install ARM64 dependencies
+      - name: Install ARM64 cross-compile toolchain and dependencies
         run: |
-          dpkg --add-architecture arm64
-          apt-get update
-          apt-get install -y --no-install-recommends \
-            git ca-certificates crossbuild-essential-arm64 cmake make pkg-config zip \
+          sudo dpkg --add-architecture arm64
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            crossbuild-essential-arm64 cmake make pkg-config zip \
             libssl-dev:arm64 libsdl2-dev:arm64 libsdl2-image-dev:arm64 libsdl2-ttf-dev:arm64 \
             libdrm-dev:arm64 libgbm-dev:arm64 libegl-dev:arm64 libgles-dev:arm64 \
             libavcodec-dev:arm64 libavformat-dev:arm64 libavutil-dev:arm64 libswscale-dev:arm64 \
             libxml2-dev:arm64 libnl-3-dev:arm64 libnl-genl-3-dev:arm64 libnl-route-3-dev:arm64 \
             libnm-dev:arm64 libpolkit-gobject-1-dev:arm64 libpolkit-agent-1-dev:arm64
-
-      - name: Update submodules
-        run: |
-          git config --global --add safe.directory /__w/vanilla/vanilla
-          git submodule update --init --recursive
 
       - name: Patch hostap OpenSSL 3.0 compatibility
         run: |
@@ -50,14 +46,19 @@ jobs:
         run: |
           mkdir -p build_switch
           cd build_switch
-          cmake -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64 -DCMAKE_FIND_ROOT_PATH=/usr/lib/aarch64-linux-gnu ..
-          cmake --build . --parallel 8
+          cmake -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
+                -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
+                -DCMAKE_SYSTEM_NAME=Linux \
+                -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+                -DCMAKE_FIND_ROOT_PATH=/usr/lib/aarch64-linux-gnu ..
+          cmake --build . --parallel $(nproc)
 
       - name: Package Switch Binary
         run: |
           mkdir -p dist
           find build_switch -name vanilla -type f -exec cp {} dist/ \; || true
           find build_switch/bin -name vanilla -type f -exec cp {} dist/ \; || true
+          find build_switch -name "vanilla-pipe" -type f -exec cp {} dist/ \; || true
           cd dist
           zip vanilla-nintendoswitch-arm64.zip *
           cd ..
