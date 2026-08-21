@@ -26,16 +26,9 @@ jobs:
             libxml2-dev:arm64 libnl-3-dev:arm64 libnl-genl-3-dev:arm64 libnl-route-3-dev:arm64 \
             libnm-dev:arm64 libpolkit-gobject-1-dev:arm64 libpolkit-agent-1-dev:arm64
 
-      - name: Patch hostap & Force DRM Compilation
+      - name: Patch hostap config for OpenSSL 3.0
         run: |
-          # 1. Neutraliser CONFIG_ENGINE pour hostap (OpenSSL 3.0)
           find . -name "defconfig" -o -name ".config" | xargs sed -i 's/^CONFIG_ENGINE=y/# CONFIG_ENGINE is not set/g' 2>/dev/null || true
-
-          # 2. Supprimer ui_sdl.c et le remplacer par ui_sdl_drm.c dans CMakeLists.txt
-          sed -i '/ui\/ui_sdl.c/d' gui/CMakeLists.txt
-
-          # 3. Forcer la définition de VANILLA_DRM_AVAILABLE tout en haut de ui_sdl_drm.c
-          sed -i '1i #define VANILLA_DRM_AVAILABLE 1' gui/ui/ui_sdl_drm.c
 
       - name: Build Vanilla Switch ARM64
         env:

@@ -290,7 +290,7 @@ list(APPEND VANILLA_GUI_SRC
     platform.c
     ui/ui.c
     ui/ui_anim.c
-    ui/ui_sdl.c
+    ui/ui_sdl_drm.c
     ui/ui_util.c
     ui/ui_util.h
     ui/ui_keyboard.c
